@@ -1,11 +1,25 @@
 from flask import Flask, render_template, jsonify
 import os
+import socket
 
 app = Flask(__name__)
 
 # SERVER_ID environment variable se aata hai jo docker-compose.yml mein define hai.
-# Isse hi pata chalta hai ki yeh kaunsa container hai (Server 1, 2, 3, ya 4).
-server_id = os.environ.get('SERVER_ID', 'Unknown Server')
+# Railway jaise platforms par yeh environment variable missing ho sakti hai,
+# isliye fallback ke liye hostname ya default value use karte hain.
+def get_server_id():
+    server_id = os.environ.get('SERVER_ID')
+    if server_id:
+        return server_id
+
+    hostname = socket.gethostname()
+    if hostname and hostname != 'localhost':
+        return f"Server ({hostname})"
+
+    return 'Server 1'
+
+
+server_id = get_server_id()
 
 
 @app.route('/')
