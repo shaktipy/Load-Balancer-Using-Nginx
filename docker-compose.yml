@@ -1,0 +1,43 @@
+# Docker Compose file — ek hi command se 5 containers start hote hain:
+# 4 Flask microservices + 1 Nginx load balancer
+
+services:
+
+  # Har ek app service ek alag Flask container hai.
+  # SERVER_ID environment variable se container ko pata chalta hai ki wo kaun hai.
+  # Ye containers directly bahar expose nahi hain — sirf Nginx se baat karte hain.
+
+  app1:
+    build: ./app
+    environment:
+      - SERVER_ID=Server 1
+
+  app2:
+    build: ./app
+    environment:
+      - SERVER_ID=Server 2
+
+  app3:
+    build: ./app
+    environment:
+      - SERVER_ID=Server 3
+
+  app4:
+    build: ./app
+    environment:
+      - SERVER_ID=Server 4
+
+  # Nginx service — yahi public-facing load balancer hai.
+  # Port 80 host machine pe expose hota hai.
+  # nginx.conf file mein Round Robin aur Least Connections configure hoti hai.
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - app1
+      - app2
+      - app3
+      - app4

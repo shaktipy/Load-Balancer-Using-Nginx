@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dockerized Microservices Load Balancer using Nginx</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-space: #F1F5F9; /* Light Slate Gray */
+            --grid-color: rgba(99, 102, 241, 0.06);
+            --primary: #6366F1;
+            --accent-cyan: #06B6D4;
+            --success: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --text-glow: rgba(99, 102, 241, 0.2);
+            
+            /* Server Specific Glowing Colors */
+            --glow-Server-1: #EF4444;
+            --glow-Server-2: #3B82F6;
+            --glow-Server-3: #10B981;
+            --glow-Server-4: #F59E0B;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-space);
+            color: #1E293B; /* Slate 800 */
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.15) 50%),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+                linear-gradient(var(--grid-color) 1px, transparent 1px);
+            background-size: 100% 4px, 30px 30px, 30px 30px;
+            padding: 30px 20px;
+        }
+
+        .wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.08);
+            border-radius: 12px;
+            margin-bottom: 40px;
+            backdrop-filter: blur(8px);
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #4F46E5, #0891B2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .algo-panel {
+            font-family: 'Share Tech Mono', monospace;
+            background: #FFFFFF;
+            border: 2px solid var(--accent-cyan);
+            color: #0891B2;
+            padding: 8px 16px;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(6, 182, 212, 0.05);
+            font-weight: bold;
+        }
+
+        /* 3D Dashboard Columns */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 40px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Isometric Visualizer Room */
+        .stage-3d-card {
+            background: #FFFFFF;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 30px;
+            position: relative;
+            min-height: 480px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.06);
+            overflow: hidden;
+        }
+
+        .stage-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.15rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #4F46E5;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Isometric Area */
+        .iso-viewport {
+            width: 100%;
+            height: 320px;
+            position: relative;
+            perspective: 800px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .iso-scene {
+            width: 500px;
+            height: 300px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(60deg) rotateZ(-45deg);
+            transition: transform 0.8s ease-in-out;
+        }
+
+        /* Isometric grid floor */
+        .iso-floor {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px dashed rgba(99, 102, 241, 0.2);
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.06) 1px, transparent 1px);
+            background-size: 25px 25px;
+            transform: translateZ(0);
+        }
+
+        /* 3D Isometric Server Rack/Cabinet */
+        .server-cabinet-3d {
+            position: absolute;
+            width: 140px;
+            height: 240px;
+            bottom: 30px;
+            right: 40px;
+            transform-style: preserve-3d;
+            transform: translateZ(10px);
+        }
+
+        /* Cabinet Walls */
+        .cabinet-face {
+            position: absolute;
+            background: #E2E8F0;
+            border: 2px solid #CBD5E1;
+        }
+
+        .cabinet-front {
+            width: 140px;
+            height: 240px;
+            transform: rotateX(-90deg) translateZ(0px);
+            transform-origin: bottom center;
+            background: #F1F5F9;
+            border: 2.5px solid #CBD5E1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            padding: 10px;
+            box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.05), 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        /* 3D Server Blades inside the cabinet */
+        .server-blade-3d {
+            width: 120px;
+            height: 40px;
+            background: #E2E8F0;
+            border: 2.5px solid #CBD5E1;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px 8px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        /* Blade face details */
+        .blade-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .blade-title {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #64748B;
+        }
+
+        .blade-indicator {
+            width: 6px;
+            height: 6px;
+            background-color: #94A3B8;
+            border-radius: 50%;
+            box-shadow: 0 0 2px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .blade-ports {
+            display: flex;
+            gap: 4px;
+        }
+
+        .blade-port {
+            width: 8px;
+            height: 6px;
+            background: #F1F5F9;
+            border: 1px solid #94A3B8;
+        }
+
+        /* Active Glow Animations per Server */
+        .server-blade-3d.active-server-blade {
+            background: #FFFFFF;
+            border-color: var(--active-color);
+            transform: translateZ(14px); /* Pops outward in 3D space */
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.15), 0 0 15px var(--active-color-glow);
+        }
+
+        .server-blade-3d.active-server-blade .blade-indicator {
+            background-color: var(--active-color);
+            box-shadow: 0 0 8px var(--active-color);
+            animation: pulse-led 0.6s infinite alternate;
+        }
+
+        @keyframes pulse-led {
+            from { opacity: 0.4; }
+            to { opacity: 1; }
+        }
+
+        /* 3D Nginx Proxy Hub */
+        .nginx-hub-3d {
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            left: 200px;
+            top: 100px;
+            transform-style: preserve-3d;
+            transform: translateZ(20px);
+        }
+
+        .hub-cylinder {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #EEF2F6 0%, #FFFFFF 100%);
+            border: 3px solid var(--accent-cyan);
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.15), inset 0 0 10px rgba(6, 182, 212, 0.1);
+            transition: all 0.3s;
+        }
+
+        .nginx-hub-3d.active .hub-cylinder {
+            transform: translateZ(10px);
+            border-color: #4F46E5;
+            box-shadow: 0 0 25px rgba(79, 70, 229, 0.3);
+        }
+
+        /* 3D Client Terminal node */
+        .client-node-3d {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            left: 40px;
+            bottom: 40px;
+            transform-style: preserve-3d;
+            transform: translateZ(10px);
+        }
+
+        .client-box {
+            width: 70px;
+            height: 70px;
+            background: #FFFFFF;
+            border: 3px solid var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.1);
+        }
+
+        /* 3D Cable paths / Pipelines */
+        .cable-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .cable-path {
+            fill: none;
+            stroke: rgba(99, 102, 241, 0.15);
+            stroke-width: 3.5px;
+            stroke-linecap: round;
+            stroke-dasharray: 6 6;
+        }
+
+        .cable-path-active {
+            stroke: var(--accent-cyan);
+            stroke-width: 4px;
+            animation: dash 1s linear infinite;
+            opacity: 0;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
+
+        /* Active Routing stats display */
+        .current-server-console {
+            background: #F8FAFC;
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 10px;
+            padding: 18px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+            margin-top: 15px;
+        }
+
+        .current-server-glow-box {
+            display: inline-block;
+            background: #FFFFFF;
+            border: 2px solid #E2E8F0;
+            padding: 10px 30px;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #0F172A;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+
+        /* Side Panels styling */
+        .side-panel {
+            background: #FFFFFF;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header-3d {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            border-bottom: 2px solid #F1F5F9;
+            padding-bottom: 12px;
+            margin-bottom: 8px;
+            color: #4F46E5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Server stats cards (Sleek neumorphic look) */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .stats-card-3d {
+            background: #F8FAFC;
+            border: 1.5px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.01);
+        }
+
+        .stats-card-3d::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #CBD5E1;
+        }
+
+        .stats-card-3d.glow-1::before { background: var(--glow-Server-1); }
+        .stats-card-3d.glow-2::before { background: var(--glow-Server-2); }
+        .stats-card-3d.glow-3::before { background: var(--glow-Server-3); }
+        .stats-card-3d.glow-4::before { background: var(--glow-Server-4); }
+
+        .stats-card-3d.active-stats-card {
+            background: #F5F3FF; /* Violet tint */
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.05);
+        }
+
+        .stats-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .stats-val-box {
+            font-family: 'Share Tech Mono', monospace;
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            color: #0891B2;
+            font-weight: bold;
+        }
+
+        /* 3D Push Button Style */
+        .btn-3d {
+            position: relative;
+            background: linear-gradient(180deg, var(--primary) 0%, #4F46E5 100%);
+            border: none;
+            border-radius: 8px;
+            color: #FFFFFF;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 14px 28px;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 6px 0 #312E81, 0 10px 15px rgba(99, 102, 241, 0.15);
+            transition: all 0.1s;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #312E81, 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-3d-warning {
+            background: linear-gradient(180deg, #F59E0B 0%, #D97706 100%);
+            box-shadow: 0 6px 0 #78350F, 0 10px 15px rgba(245, 158, 11, 0.1);
+        }
+
+        .btn-3d-warning:active {
+            box-shadow: 0 2px 0 #78350F, 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Fututistic Toggle Switch */
+        .switch-row-3d {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            padding: 14px 20px;
+            border-radius: 8px;
+        }
+
+        .switch-label-3d {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #475569;
+        }
+
+        .switch-3d {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch-3d input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-3d {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #E2E8F0;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 34px;
+            transition: .4s;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .slider-3d:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 2.5px;
+            background-color: #94A3B8;
+            border-radius: 50%;
+            transition: .4s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        input:checked + .slider-3d {
+            background-color: rgba(6, 182, 212, 0.15);
+            border-color: var(--accent-cyan);
+        }
+
+        input:checked + .slider-3d:before {
+            transform: translateX(24px);
+            background-color: var(--accent-cyan);
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+
+        /* 3D Telemetry Log Console */
+        .console-3d {
+            background: #0F172A; /* Contrast dark screen console */
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            height: 220px;
+            overflow-y: auto;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+            color: #94A3B8;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        .console-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .c-timestamp {
+            color: #64748B;
+        }
+
+        .c-tag {
+            color: var(--accent-cyan);
+        }
+
+        .c-node {
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="wrapper">
+        <header>
+            <div class="logo" style="font-size: 1.25rem; letter-spacing: 1px;">Dockerized Microservices Load Balancer using Nginx</div>
+            <div class="algo-panel" id="algo-lbl">LBL: ROUND_ROBIN</div>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- ==========================================
+                 LEFT SIDE: 3D ISOMETRIC VISUAL VIEWPORT
+                 Yahan humne CSS 3D transforms use karke
+                 ek fake 3D isometric data center ka scene
+                 banaya hai. Ye sirf visual representation
+                 hai — actual servers Docker containers hain.
+            ========================================== -->
+            <div class="stage-3d-card">
+                <div class="stage-title">
+                    <span>📡</span> Isometric Grid Environment (3D)
+                </div>
+
+                <div class="iso-viewport">
+                    <div class="iso-scene" id="scene">
+                        <div class="iso-floor"></div>
+
+                        <!-- SVG Cables — ye lines Client se Nginx tak
+                             aur Nginx se Server tak ka traffic flow dikhati hain.
+                             'cable-path-active' wali path animate hoti hai jab
+                             request trigger hoti hai. -->
+                        <svg class="cable-svg" viewBox="0 0 500 300">
+                            <!-- Client to Balancer Path -->
+                            <path class="cable-path" id="cable-c-b" d="M 80,180 Q 180,180 240,140" />
+                            <path class="cable-path-active" id="cable-c-b-active" d="M 80,180 Q 180,180 240,140" />
+
+                            <!-- Balancer to Server Rack Path -->
+                            <path class="cable-path" id="cable-b-s" d="M 250,140 Q 320,120 410,130" />
+                            <path class="cable-path-active" id="cable-b-s-active" d="M 250,140 Q 320,120 410,130" />
+                        </svg>
+
+                        <!-- CLIENT NODE: Wo banda jo browser se request bhejta hai -->
+                        <div class="client-node-3d">
+                            <div class="client-box">💻</div>
+                        </div>
+
+                        <!-- NGINX HUB: Yahi wo main cheez hai jo
+                             incoming request receive karta hai aur decide karta hai
+                             ki kaunse Flask server ko bhejni hai (Round Robin mein
+                             wo ek-ek karke sab ko deta hai). -->
+                        <div class="nginx-hub-3d" id="nginx-node">
+                            <div class="hub-cylinder">⚙️</div>
+                        </div>
+
+                        <!-- SERVER CABINET: 4 Flask microservices hain andar.
+                             Har ek ek alag Docker container hai.
+                             Jab koi request aati hai, us server ka blade
+                             Z-axis mein aage aa jata hai (pop-out effect). -->
+                        <div class="server-cabinet-3d">
+                            <div class="cabinet-front">
+                                <!-- Blade Server 4 -->
+                                <div class="server-blade-3d" id="blade-Server-4" style="--active-color: var(--glow-Server-4); --active-color-glow: rgba(245, 158, 11, 0.25)">
+                                    <div class="blade-top-row">
+                                        <span class="blade-title">NODE-04</span>
+                                        <div class="blade-indicator"></div>
+                                    </div>
+                                    <div class="blade-ports">
+                                        <div class="blade-port"></div>
+                                        <div class="blade-port"></div>
+                                        <div class="blade-port"></div>
+                                    </div>
+                                </div>
+                                <!-- Blade Server 3 -->
+                                <div class="server-blade-3d" id="blade-Server-3" style="--active-color: var(--glow-Server-3); --active-color-glow: rgba(16, 185, 129, 0.25)">
+                                    <div class="blade-top-row">
+                                        <span class="blade-title">NODE-03</span>
+                                        <div class="blade-indicator"></div>
+                                    </div>
+                                    <div class="blade-ports">
+                                        <div class="blade-port"></div>
+                                        <div class="blade-port"></div>
+                                        <div class="blade-port"></div>
+                                    </div>
+                                </div>
+                                <!-- Blade Server 2 -->
+                                <div class="server-blade-3d" id="blade-Server-2" style="--active-color: var(--glow-Server-2); --active-color-glow: rgba(59, 130, 246, 0.25)">
+                                    <div class="blade-top-row">
+                                        <span class="blade-title">NODE-02</span>
+                                        <div class="blade-indicator"></div>
+                                    </div>
+                                    <div class="blade-ports">
+                                        <div class="blade-port"></div>
+                                        <div class="blade-port"></div>
+                                        <div class="blade-port"></div>
+                                    </div>
+                                </div>
+                                <!-- Blade Server 1 -->
+                                <div class="server-blade-3d" id="blade-Server-1" style="--active-color: var(--glow-Server-1); --active-color-glow: rgba(239, 68, 68, 0.25)">
+                                    <div class="blade-top-row">
+                                        <span class="blade-title">NODE-01</span>
+                                        <div class="blade-indicator"></div>
+                                    </div>
+                                    <div class="blade-ports">
+                                        <div class="blade-port"></div>
+                                        <div class="blade-port"></div>
+                                        <div class="blade-port"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Console Output Banner -->
+                <div class="current-server-console">
+                    <div style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px; color: #64748B; margin-bottom: 6px;">
+                        Active Target Session Response
+                    </div>
+                    <div class="current-server-glow-box" id="current-server-badge">
+                        {{ server_id }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Server List & Controls -->
+            <div class="side-panel">
+                
+                <!-- Server Metrics -->
+                <div>
+                    <div class="card-header-3d">
+                        <span>📊 Cluster Telemetry</span>
+                        <span style="font-size: 0.75rem; color: var(--success); font-weight: bold;">ONLINE</span>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stats-card-3d glow-1" id="card-Server-1">
+                            <span class="stats-name">Server 01</span>
+                            <span class="stats-val-box" id="count-Server-1">0</span>
+                        </div>
+                        <div class="stats-card-3d glow-2" id="card-Server-2">
+                            <span class="stats-name">Server 02</span>
+                            <span class="stats-val-box" id="count-Server-2">0</span>
+                        </div>
+                        <div class="stats-card-3d glow-3" id="card-Server-3">
+                            <span class="stats-name">Server 03</span>
+                            <span class="stats-val-box" id="count-Server-3">0</span>
+                        </div>
+                        <div class="stats-card-3d glow-4" id="card-Server-4">
+                            <span class="stats-name">Server 04</span>
+                            <span class="stats-val-box" id="count-Server-4">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controllers -->
+                <div>
+                    <div class="card-header-3d">📡 Traffic Dispatcher</div>
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        
+                        <button class="btn-3d" id="btn-fire">
+                            Inject Network Load
+                        </button>
+
+                        <div class="switch-row-3d">
+                            <span class="switch-label-3d">Continuous Traffic Mode</span>
+                            <label class="switch-3d">
+                                <input type="checkbox" id="toggle-autopilot">
+                                <span class="slider-3d"></span>
+                            </label>
+                        </div>
+
+                        <button class="btn-3d btn-3d-warning" id="btn-clear">
+                            Reset Scoreboard
+                        </button>
+
+                    </div>
+                </div>
+
+                <!-- Logger console -->
+                <div>
+                    <div class="card-header-3d">⚙️ Connection Logs</div>
+                    <div class="console-3d" id="console">
+                        <div class="console-row">
+                            <span class="c-timestamp">[Telemetry Online]</span>
+                            <span>Listening for port 80 connections...</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM bindings — HTML elements ko JavaScript se pakad rahe hain
+        const currentServerBadge = document.getElementById('current-server-badge');
+        const btnFire = document.getElementById('btn-fire');
+        const btnClear = document.getElementById('btn-clear');
+        const toggleAutopilot = document.getElementById('toggle-autopilot');
+        const consoleContainer = document.getElementById('console');
+        const nginxNode = document.getElementById('nginx-node');
+        
+        // Active Paths animations
+        const cableCBActive = document.getElementById('cable-c-b-active');
+        const cableBSActive = document.getElementById('cable-b-s-active');
+
+        // Har server ka apna unique color hai UI mein
+        const colors = {
+            'Server 1': 'var(--glow-Server-1)',
+            'Server 2': 'var(--glow-Server-2)',
+            'Server 3': 'var(--glow-Server-3)',
+            'Server 4': 'var(--glow-Server-4)'
+        };
+
+        // Is session mein kitni requests kisne handle ki — yahan track hota hai
+        const score = {
+            'Server 1': 0,
+            'Server 2': 0,
+            'Server 3': 0,
+            'Server 4': 0
+        };
+
+        // Initialize active state on load
+        const startServer = "{{ server_id }}".trim();
+        if(score[startServer] !== undefined) {
+            score[startServer] = 1;
+            document.getElementById(`count-${startServer.replace(' ', '-')}`).innerText = '1';
+            
+            const card = document.getElementById(`card-${startServer.replace(' ', '-')}`);
+            if (card) card.classList.add('active-stats-card');
+            
+            const blade = document.getElementById(`blade-${startServer.replace(' ', '-')}`);
+            if (blade) blade.classList.add('active-server-blade');
+
+            currentServerBadge.style.borderColor = colors[startServer];
+            currentServerBadge.style.boxShadow = `0 4px 15px ${colors[startServer]}44`;
+        }
+
+        // Autopilot ka timer reference — baad mein clearInterval ke liye zaroori hai
+        let autopilotTimer = null;
+
+        // Terminal mein ek naya log entry add karta hai
+        function addLog(server) {
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = 'console-row';
+            div.innerHTML = `
+                <span class="c-timestamp">[${time}]</span>
+                <span class="c-tag">HTTP GET</span>
+                <span>/api/server ➔</span>
+                <span class="c-node" style="color: ${colors[server]}">${server}</span>
+            `;
+            consoleContainer.appendChild(div);
+            consoleContainer.scrollTop = consoleContainer.scrollHeight;
+        }
+
+        // Yahi main function hai jo ek poora request cycle chalata hai:
+        // Client → Nginx → Flask Server (visually bhi aur actually bhi)
+        async function triggerTrafficPipeline() {
+            // Step 1: Client se Nginx tak cable animate karo
+            cableCBActive.style.opacity = '1';
+            
+            // Pulse Nginx Node
+            setTimeout(() => {
+                nginxNode.classList.add('active');
+                cableCBActive.style.opacity = '0';
+                cableBSActive.style.opacity = '1';
+            }, 300);
+
+            setTimeout(() => {
+                nginxNode.classList.remove('active');
+            }, 600);
+
+            try {
+                // /api/server endpoint Flask ka hai — jo server yeh handle
+                // karta hai wohi apna SERVER_ID return karta hai.
+                // Nginx Round Robin mein har baar alag server ko request deta hai.
+                const res = await fetch('/api/server');
+                const data = await res.json();
+                const targetServer = data.server_id;
+
+                setTimeout(() => {
+                    cableBSActive.style.opacity = '0';
+
+                    // Update Badge and add Glow
+                    currentServerBadge.innerText = targetServer;
+                    currentServerBadge.style.borderColor = colors[targetServer];
+                    currentServerBadge.style.boxShadow = `0 4px 20px ${colors[targetServer]}66`;
+
+                    // Increment metrics
+                    score[targetServer] = (score[targetServer] || 0) + 1;
+                    const cleanId = targetServer.replace(' ', '-');
+                    const label = document.getElementById(`count-${cleanId}`);
+                    if (label) label.innerText = score[targetServer];
+
+                    // Reset 3D status visual state on blades and cards
+                    document.querySelectorAll('.server-blade-3d').forEach(b => b.classList.remove('active-server-blade'));
+                    document.querySelectorAll('.stats-card-3d').forEach(c => c.classList.remove('active-stats-card'));
+
+                    // Set active blade (Isometric Server Rack POP animation)
+                    const activeBlade = document.getElementById(`blade-${cleanId}`);
+                    if (activeBlade) activeBlade.classList.add('active-server-blade');
+
+                    // Set active stats card
+                    const activeCard = document.getElementById(`card-${cleanId}`);
+                    if (activeCard) activeCard.classList.add('active-stats-card');
+
+                    // Add console log
+                    addLog(targetServer);
+
+                }, 600);
+
+            } catch (e) {
+                console.error("Traffic delivery failed", e);
+                cableCBActive.style.opacity = '0';
+                cableBSActive.style.opacity = '0';
+            }
+        }
+
+        // Single request bhejne wala button — sirf tab kaam karta hai jab
+        // autopilot OFF ho, warna conflict hoga
+        btnFire.addEventListener('click', () => {
+            if (!toggleAutopilot.checked) {
+                triggerTrafficPipeline();
+            }
+        });
+
+        // Autopilot mode: har 1 second mein automatically request bhejta rehta hai
+        // setInterval se loop chalata hai, aur band karne ke liye clearInterval
+        toggleAutopilot.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                btnFire.disabled = true;
+                btnFire.style.opacity = 0.5;
+                triggerTrafficPipeline();
+                autopilotTimer = setInterval(triggerTrafficPipeline, 1000);
+            } else {
+                btnFire.disabled = false;
+                btnFire.style.opacity = 1;
+                clearInterval(autopilotTimer);
+            }
+        });
+
+        // Reset button: sab counters zero karo, console saaf karo, UI reset karo
+        btnClear.addEventListener('click', () => {
+            Object.keys(score).forEach(k => {
+                score[k] = 0;
+                const cleanId = k.replace(' ', '-');
+                const label = document.getElementById(`count-${cleanId}`);
+                if (label) label.innerText = '0';
+            });
+            document.querySelectorAll('.server-blade-3d').forEach(b => b.classList.remove('active-server-blade'));
+            document.querySelectorAll('.stats-card-3d').forEach(c => c.classList.remove('active-stats-card'));
+            
+            consoleContainer.innerHTML = `
+                <div class="console-row">
+                    <span class="c-timestamp">[Reset]</span>
+                    <span>All connection histories flushed.</span>
+                </div>
+            `;
+            currentServerBadge.innerText = 'OFFLINE';
+            currentServerBadge.style.borderColor = '#E2E8F0';
+            currentServerBadge.style.boxShadow = 'none';
+        });
+    </script>
+</body>
+</html>
