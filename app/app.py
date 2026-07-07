@@ -31,6 +31,6 @@ def health():
 
 
 if __name__ == '__main__':
-    # 0.0.0.0 ka matlab hai ki container ke bahar se bhi accessible ho.
-    # Sirf localhost likhte toh container ke andar tak limited rahta.
-    app.run(host='0.0.0.0', port=5000)
+    # Render jaise hosting platforms ke liye PORT environment variable use karna zaroori hai.
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
